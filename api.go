@@ -1,8 +1,8 @@
 package webapp
 
 import (
+	"github.com/mbict/go-webapp/container"
 	"github.com/mbict/httprouter"
-	"github.com/mbict/webapp/container"
 	"net/http"
 	"strings"
 )

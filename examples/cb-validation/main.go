@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mbict/go-commandbus/v2"
 	"github.com/mbict/go-querybus"
-	"github.com/mbict/webapp"
+	"github.com/mbict/go-webapp"
 	"log"
 	"net/http"
 )

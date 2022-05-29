@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/mbict/webapp/container"
+	"github.com/mbict/go-webapp/container"
 )
 
 var Container container.Container

@@ -1,7 +1,7 @@
 package webapp
 
 import (
-	"github.com/mbict/webapp/decoder"
+	"github.com/mbict/go-webapp/decoder"
 	"net/http"
 )
 

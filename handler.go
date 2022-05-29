@@ -4,8 +4,8 @@ package webapp
 
 import (
 	"context"
-	"github.com/mbict/webapp/container"
-	"github.com/mbict/webapp/encoding/json"
+	"github.com/mbict/go-webapp/container"
+	"github.com/mbict/go-webapp/encoding/json"
 	"log"
 	"net/http"
 )

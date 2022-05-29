@@ -2,7 +2,7 @@ package decoder_test
 
 import (
 	"github.com/gorilla/schema"
-	"github.com/mbict/webapp/decoder"
+	"github.com/mbict/go-webapp/decoder"
 	"testing"
 )
 

@@ -3,7 +3,7 @@ package decoder
 import (
 	"encoding"
 	"errors"
-	"github.com/mbict/webapp/internal"
+	"github.com/mbict/go-webapp/internal"
 	"reflect"
 	"strconv"
 	"unsafe"

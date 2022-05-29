@@ -1,6 +1,6 @@
 package webapp
 
-import "github.com/mbict/webapp/decoder"
+import "github.com/mbict/go-webapp/decoder"
 
 const defaultTag = "default"
 const pathTag = "path"

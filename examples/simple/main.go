@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/mbict/webapp"
-	"github.com/mbict/webapp/app"
+	"github.com/mbict/go-webapp"
+	"github.com/mbict/go-webapp/app"
 	"log"
 	"net/http"
 )
