@@ -72,6 +72,7 @@ func Greet(ctx context.Context, req *GreetRequest) (*GreetResponse, error) {
 func main() {
 	r := webapp.New(app.NewContainer())
 
+	r.Get("/", webapp.H(Greet))
 	r.Get("/test", webapp.H(Ping))
 	r.Get("/test/@id:test", webapp.H(Test1))
 	r.Get("/test/@id:test1", webapp.H(Test2))
@@ -87,6 +88,20 @@ func main() {
 	}
 
 	r.Get("/test/@id", webapp.H(Ping))
+
+	r.Get("/created", webapp.H(func(ctx context.Context, empty *webapp.Empty) (webapp.CreatedResponse, error) {
+		//return webapp.EmptyResponse, nil
+		return webapp.NewCreatedResponse("/test"), nil
+	}))
+
+	r.Get("/notsocreated", webapp.H(func(ctx context.Context, empty *webapp.Empty) (webapp.CreatedResponse, error) {
+		//return webapp.EmptyResponse, nil
+		return webapp.NewCreatedResponse("/test"), errors.New("serious problem here. ;)")
+	}))
+
+	r.Get("/empty", webapp.H(func(ctx context.Context, empty *webapp.Empty) (*webapp.Empty, error) {
+		return nil, nil
+	}))
 
 	log.Fatal(r.ListenAndServe(":8080"))
 }

@@ -74,6 +74,8 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 		panic(err)
 	}
 
+	isEmpty := makeEmptyCheck(*new(O))
+
 	return func(rw http.ResponseWriter, req *http.Request) {
 		enc, err := handlerCtx.encoderNegotiator.Get(req.Header.Get("Accept"))
 		if err != nil {
@@ -130,9 +132,11 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 			rw.WriteHeader(sc.StatusCode())
 		}
 
-		if err = enc.Encode(rw, res); err != nil {
-			log.Default().Printf("%v", err)
-			http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		if e != nil || false == isEmpty(res) {
+			if err = enc.Encode(rw, res); err != nil {
+				log.Default().Printf("%v", err)
+				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
 		}
 	}
 }

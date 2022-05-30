@@ -6,47 +6,56 @@ import (
 )
 
 type CreatedResponse struct {
-	empty
+	Empty
 	url string
 }
 
-func (c *CreatedResponse) StatusCode() int {
+func (c CreatedResponse) StatusCode() int {
 	return http.StatusCreated
 }
 
-func (c *CreatedResponse) Header() http.Header {
+func (c CreatedResponse) Header() http.Header {
 	h := http.Header{}
 	h.Add("Location", c.url)
 	return h
 }
 
-func NewCreatedResponse(url string) *CreatedResponse {
-	return &CreatedResponse{
-		empty: EmptyResponse,
-		url:   url,
+func NewCreatedResponse(url string) CreatedResponse {
+	return CreatedResponse{
+		url: url,
 	}
+}
+
+type empty interface {
+	emptyResponse() bool
 }
 
 type Empty struct{}
 
-var EmptyResponse = empty(false)
+var EmptyResponse = Empty{}
 
-type empty bool
+func (r Empty) emptyResponse() bool {
+	return true
+}
+
+func (_ *Empty) StatusCode() int {
+	return http.StatusNoContent
+}
 
 var emptyBytes = []byte(``)
 
-func (r empty) MarshalText() ([]byte, error) {
+func (r Empty) MarshalText() ([]byte, error) {
 	return emptyBytes, nil
 }
 
-func (r empty) MarshalJSON() ([]byte, error) {
+func (r Empty) MarshalJSON() ([]byte, error) {
 	return emptyBytes, nil
 }
 
-func (r empty) MarshalXML(enc *xml.Encoder, _ xml.StartElement) error {
+func (r Empty) MarshalXML(enc *xml.Encoder, _ xml.StartElement) error {
 	return nil
 }
 
-func (r empty) MarshalYAML() (interface{}, error) {
+func (r Empty) MarshalYAML() (interface{}, error) {
 	return emptyBytes, nil
 }
