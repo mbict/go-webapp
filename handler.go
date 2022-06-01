@@ -5,6 +5,7 @@ package webapp
 import (
 	"context"
 	"github.com/mbict/go-webapp/container"
+	"github.com/mbict/go-webapp/decoder"
 	"github.com/mbict/go-webapp/encoding/json"
 	"log"
 	"net/http"
@@ -69,9 +70,15 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 	}
 
 	var req T
+
 	argumentDecoder, err := BuildArgumentsBinder(req)
 	if err != nil {
 		panic(err)
+	}
+
+	var defaultsDecoder decoder.Decode
+	if hasTag(req, headerTag) {
+		defaultsDecoder, err = decoder.NewDefaultDecoder(req, headerTag)
 	}
 
 	isEmpty := makeEmptyCheck(*new(O))
@@ -89,10 +96,12 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 			e       *HTTPError
 		)
 
-		//decode arguments
-		if err := argumentDecoder.Decode(req, payload); err != nil {
-			e = Error(err, http.StatusBadRequest)
-			goto Encode
+		//set defaults
+		if defaultsDecoder != nil {
+			if err := defaultsDecoder(req, payload); err != nil {
+				e = Error(err, http.StatusBadRequest)
+				goto Encode
+			}
 		}
 
 		//decode the body.
@@ -107,6 +116,12 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 				e = Error(err, http.StatusBadRequest)
 				goto Encode
 			}
+		}
+
+		//decode arguments, last as this should always override previous body decode
+		if err := argumentDecoder.Decode(req, payload); err != nil {
+			e = Error(err, http.StatusBadRequest)
+			goto Encode
 		}
 
 		//call action handler

@@ -14,10 +14,6 @@ var defaultDecodeBinders = []struct {
 	factory decoderFactory
 }{
 	{
-		tag:     defaultTag,
-		factory: decoder.NewDefaultDecoder,
-	},
-	{
 		tag:     headerTag,
 		factory: decoder.NewHeaderDecoder,
 	},
