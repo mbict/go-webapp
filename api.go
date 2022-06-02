@@ -70,6 +70,19 @@ func (r *API) Use(mw ...Middleware) {
 	r.mw = append(r.mw, mw...)
 }
 
+func (r *API) EnableCORS() {
+	r.EnableCORSWithConfig(defaultCORSConfig)
+}
+
+func (r *API) EnableCORSWithConfig(config CORSConfig) {
+	r.router.HandleOPTIONS = true
+	r.router.GlobalOPTIONS = corsWithConfig(config)
+}
+
+func (r *API) DisableCORS() {
+	r.router.HandleOPTIONS = false
+}
+
 type Config struct {
 	DefaultEncoding string
 
