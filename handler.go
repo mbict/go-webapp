@@ -77,8 +77,11 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 	}
 
 	var defaultsDecoder decoder.Decode
-	if hasTag(req, headerTag) {
-		defaultsDecoder, err = decoder.NewDefaultDecoder(req, headerTag)
+	if hasTag(req, defaultTag) {
+		defaultsDecoder, err = decoder.NewDefaultDecoder(req, defaultTag)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	isEmpty := makeEmptyCheck(*new(O))
