@@ -11,6 +11,12 @@ var DefaultEncoding = "application/json"
 
 type Middleware func(http.HandlerFunc) http.HandlerFunc
 
+func WrapMiddleware(handler func(next http.Handler) http.Handler) Middleware {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return handler(next).ServeHTTP
+	}
+}
+
 type Router interface {
 	Get(path string, handle http.HandlerFunc)
 	Post(path string, handle http.HandlerFunc)
@@ -68,19 +74,6 @@ func (r *API) Group(path string) Router {
 
 func (r *API) Use(mw ...Middleware) {
 	r.mw = append(r.mw, mw...)
-}
-
-func (r *API) EnableCORS() {
-	r.EnableCORSWithConfig(defaultCORSConfig)
-}
-
-func (r *API) EnableCORSWithConfig(config CORSConfig) {
-	r.router.HandleOPTIONS = true
-	r.router.GlobalOPTIONS = corsWithConfig(config)
-}
-
-func (r *API) DisableCORS() {
-	r.router.HandleOPTIONS = false
 }
 
 type Config struct {
