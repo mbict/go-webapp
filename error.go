@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"github.com/mbict/go-webapp/encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 )
@@ -14,6 +16,39 @@ func E(err error) http.HandlerFunc {
 	})
 	return func(rw http.ResponseWriter, req *http.Request) {
 		h(rw, req)
+	}
+}
+
+func ErrorHandler() func(error) http.HandlerFunc {
+	encoderNegotiator := NewNegotiatorBuilder[Encoder]()
+	jsonEncoder := json.NewJsonEncoding()
+	encoderNegotiator.Register("application/json", jsonEncoder, "*/*")
+
+	return func(e error) http.HandlerFunc {
+		return func(rw http.ResponseWriter, req *http.Request) {
+			enc, err := encoderNegotiator.Get(req.Header.Get("Accept"))
+			//default to json encoder if no negotiation cna be done
+			if err != nil {
+				enc = jsonEncoder
+			}
+
+			rw.Header().Add("Content-Type", enc.Mimetype()+"; charset=utf-8")
+
+			if h, ok := e.(Headerer); ok {
+				for k, v := range h.Header() {
+					rw.Header().Add(k, v[0])
+				}
+			}
+
+			if sc, ok := e.(StatusCoder); ok {
+				rw.WriteHeader(sc.StatusCode())
+			}
+
+			if err = enc.Encode(rw, e); err != nil {
+				log.Default().Printf("%v", err)
+				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
+		}
 	}
 }
 
