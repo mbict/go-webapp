@@ -96,7 +96,7 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 		var (
 			payload = new(T)
 			res     any
-			e       *HTTPError
+			e       error
 		)
 
 		//set defaults

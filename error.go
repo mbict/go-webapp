@@ -57,7 +57,10 @@ type HTTPError struct {
 	code int
 }
 
-func Error(err error, code int) *HTTPError {
+func Error(err error, code int) error {
+	if _, ok := err.(StatusCoder); ok {
+		return err
+	}
 	return &HTTPError{err, code}
 }
 
