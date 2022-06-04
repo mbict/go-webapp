@@ -30,6 +30,7 @@ type HandlerContext struct {
 	container         container.Container
 	encoderNegotiator NegotiatorBuilder[Encoder]
 	decoderNegotiator NegotiatorBuilder[Decoder]
+	errorHandler      func(error) error
 }
 
 func (c *HandlerContext) RegisterEncoder(contentType string, enc Encoder, aliases ...string) {
@@ -46,27 +47,62 @@ func (c *HandlerContext) RegisterDecoder(contentType string, dec Decoder, aliase
 	c.decoderNegotiator.Register(contentType, dec, aliases...)
 }
 
+/* todo swap out for text encoding, this is used to output errors if accept type is notavailable */
+var defaultEncoder = json.NewJsonEncoding()
+
 // H wraps your handler function with the Go generics magic.
 func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 
+	//create the default configurable context
 	handlerCtx := &HandlerContext{
 		container:         container.Default,
 		encoderNegotiator: NewNegotiatorBuilder[Encoder](),
 		decoderNegotiator: NewNegotiatorBuilder[Decoder](),
+		errorHandler: func(err error) error {
+			if _, ok := err.(StatusCoder); ok {
+				return err
+			}
+			return Error(err, http.StatusInternalServerError)
+		},
 	}
 
-	//todo: for now hardcoded, will need to make this injectable or configurable through the default
-	jsonEncoder := json.NewJsonEncoding()
-	handlerCtx.encoderNegotiator.Register("application/json", jsonEncoder, "*/*")
-	handlerCtx.decoderNegotiator.Register("application/json", jsonEncoder)
-
-	//xmlEncoder := xml.NewXMLEncoding()
-	//handlerCtx.encoderNegotiator.Register("application/xml", xmlEncoder)
-	//handlerCtx.decoderNegotiator.Register("application/xml", xmlEncoder)
+	//if no options are provided use the global default ones
+	if len(options) == 0 {
+		options = DefaultOptions
+	}
 
 	//process options
 	for _, option := range options {
 		option(handlerCtx)
+	}
+
+	//internal handler for rendering errors
+	handleError := func(e error, rw http.ResponseWriter, req *http.Request) {
+		e = handlerCtx.errorHandler(e)
+
+		enc, err := handlerCtx.encoderNegotiator.Get(req.Header.Get("Accept"))
+		if err != nil {
+			//we revert to default encoding, if the current accept is not available
+			enc = defaultEncoder
+		}
+
+		rw.Header().Add("Content-Type", enc.Mimetype()+"; charset=utf-8")
+
+		if h, ok := e.(Headerer); ok {
+			for k, v := range h.Header() {
+				rw.Header().Add(k, v[0])
+			}
+		}
+
+		if sc, ok := e.(StatusCoder); ok {
+			rw.WriteHeader(sc.StatusCode())
+		} else {
+			rw.WriteHeader(http.StatusInternalServerError)
+		}
+
+		if err = enc.Encode(rw, e); err != nil {
+			log.Printf("unable to encode error in error handler %v", err)
+		}
 	}
 
 	var req T
@@ -89,21 +125,20 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		enc, err := handlerCtx.encoderNegotiator.Get(req.Header.Get("Accept"))
 		if err != nil {
-			http.Error(rw, http.StatusText(http.StatusNotAcceptable), http.StatusNotAcceptable)
+			handleError(ErrNotAcceptable, rw, req)
 			return
 		}
 
 		var (
 			payload = new(T)
 			res     any
-			e       error
 		)
 
 		//set defaults
 		if defaultsDecoder != nil {
 			if err := defaultsDecoder(req, payload); err != nil {
-				e = Error(err, http.StatusBadRequest)
-				goto Encode
+				handleError(Error(err, http.StatusBadRequest), rw, req)
+				return
 			}
 		}
 
@@ -111,34 +146,30 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 		if req.ContentLength > 0 {
 			dec, err := handlerCtx.decoderNegotiator.Get(req.Header.Get("Content-Type"))
 			if err != nil {
-				res = err
-				goto Encode
+				handleError(err, rw, req)
+				return
 			}
 
 			if err := dec.Decode(req, payload); err != nil {
-				e = Error(err, http.StatusBadRequest)
-				goto Encode
+				handleError(Error(err, http.StatusBadRequest), rw, req)
+				return
 			}
 		}
 
 		//decode arguments, last as this should always override previous body decode
 		if err := argumentDecoder.Decode(req, payload); err != nil {
-			e = Error(err, http.StatusBadRequest)
-			goto Encode
+			handleError(Error(err, http.StatusBadRequest), rw, req)
+			return
 		}
 
 		//call action handler
 		res, err = handle(req.Context(), *payload)
 		if err != nil {
-			e = Error(err, 0)
+			handleError(err, rw, req)
+			return
 		}
 
-	Encode:
 		rw.Header().Add("Content-Type", enc.Mimetype()+"; charset=utf-8")
-
-		if e != nil {
-			res = e
-		}
 
 		if h, ok := res.(Headerer); ok {
 			for k, v := range h.Header() {
@@ -150,10 +181,9 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 			rw.WriteHeader(sc.StatusCode())
 		}
 
-		if e != nil || false == isEmpty(res) {
+		if false == isEmpty(res) {
 			if err = enc.Encode(rw, res); err != nil {
-				log.Default().Printf("%v", err)
-				http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				handleError(Error(err, http.StatusInternalServerError), rw, req)
 			}
 		}
 	}

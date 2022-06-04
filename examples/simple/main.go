@@ -126,7 +126,7 @@ func main() {
 
 	r.Get("/test/@id", webapp.H(Ping))
 
-	r.Get("/created", webapp.H(func(ctx context.Context, empty *webapp.Empty) (webapp.CreatedResponse, error) {
+	r.Post("/created", webapp.H(func(ctx context.Context, empty *webapp.Empty) (webapp.CreatedResponse, error) {
 		//return webapp.EmptyResponse, nil
 		return webapp.NewCreatedResponse("/test"), nil
 	}))
