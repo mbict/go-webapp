@@ -37,8 +37,8 @@ func Test4(context.Context, *webapp.Empty) (string, error) {
 }
 
 type GreetRequest struct {
-	Name string `json:"name"`         // Get name from JSON body.
-	Age  int    `header:"X-User-Age"` // Get age from HTTP header.
+	Name string `json:"name" query:"name" default:"world"` // Get name from JSON body.
+	Age  int    `header:"X-User-Age"`                      // Get age from HTTP header.
 }
 
 type GreetResponse struct {
@@ -80,6 +80,7 @@ func main() {
 	})
 
 	r.Get("/", webapp.H(Greet))
+	r.Post("/", webapp.H(Greet))
 	r.Get("/test", webapp.H(Ping), func(next http.HandlerFunc) http.HandlerFunc {
 		return func(rw http.ResponseWriter, req *http.Request) {
 			fmt.Println("route middleware second")

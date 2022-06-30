@@ -27,7 +27,7 @@ func stripEncoding(s string) string {
 
 func (n negotiator[T]) Get(contentTypes string) (h T, e error) {
 	for _, mimetype := range strings.Split(contentTypes, ",") {
-		mimetype := stripEncoding(mimetype)
+		mimetype = stripEncoding(mimetype)
 
 		if v, ok := n.encodings[mimetype]; ok {
 			return v, nil

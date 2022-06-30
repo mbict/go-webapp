@@ -9,7 +9,8 @@ import (
 var DefaultOptions = Options{
 	WithContainer(container.Default),
 	AcceptsJson("*/*"),
-	OutputsJson(),
+	OutputsJson("*/*"),
+	WithDefaultJSONOutputEncoding(),
 	//WithErrorHandler(func(err error) error {
 	//	return err
 	//}),
@@ -23,15 +24,27 @@ func (o *Options) Add(option ...Option) Options {
 
 type Option func(ctx *HandlerContext)
 
-func AcceptsJson(mediatype ...string) Option {
+func AcceptsJson(mediatypeAlias ...string) Option {
 	return func(ctx *HandlerContext) {
-		ctx.decoderNegotiator.Register("application/json", json.NewJsonEncoding(), mediatype...)
+		ctx.decoderNegotiator.Register("application/json", json.NewJsonEncoding(), mediatypeAlias...)
 	}
 }
 
-func OutputsJson() Option {
+func OutputsJson(mediatypeAlias ...string) Option {
 	return func(ctx *HandlerContext) {
-		ctx.encoderNegotiator.Register("application/json", json.NewJsonEncoding())
+		ctx.encoderNegotiator.Register("application/json", json.NewJsonEncoding(), mediatypeAlias...)
+	}
+}
+
+func WithDefaultOutputEncoding(mimetype string) Option {
+	return func(ctx *HandlerContext) {
+		ctx.defaultEncoding = mimetype
+	}
+}
+
+func WithDefaultJSONOutputEncoding() Option {
+	return func(ctx *HandlerContext) {
+		ctx.defaultEncoding = "application/json"
 	}
 }
 

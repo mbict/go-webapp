@@ -30,7 +30,21 @@ type HandlerContext struct {
 	container         container.Container
 	encoderNegotiator NegotiatorBuilder[Encoder]
 	decoderNegotiator NegotiatorBuilder[Decoder]
+	defaultEncoding   string
 	errorHandler      func(error) error
+}
+
+func (ctx *HandlerContext) getEncoder(acceptMimetype string) (Encoder, error) {
+	enc, err := ctx.encoderNegotiator.Get(acceptMimetype)
+	if err != nil {
+		//try to get the default encoder
+		if enc, err = ctx.encoderNegotiator.Get(ctx.defaultEncoding); err != nil {
+			//if all fail we use the defaultEncoder
+			enc = defaultEncoder
+			err = nil
+		}
+	}
+	return enc, err
 }
 
 func (c *HandlerContext) RegisterEncoder(contentType string, enc Encoder, aliases ...string) {
@@ -58,6 +72,7 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 		container:         container.Default,
 		encoderNegotiator: NewNegotiatorBuilder[Encoder](),
 		decoderNegotiator: NewNegotiatorBuilder[Decoder](),
+		defaultEncoding:   "application/json",
 		errorHandler: func(err error) error {
 			if _, ok := err.(StatusCoder); ok {
 				return err
@@ -80,10 +95,10 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 	handleError := func(e error, rw http.ResponseWriter, req *http.Request) {
 		e = handlerCtx.errorHandler(e)
 
-		enc, err := handlerCtx.encoderNegotiator.Get(req.Header.Get("Accept"))
+		enc, err := handlerCtx.getEncoder(req.Header.Get("Accept"))
 		if err != nil {
-			//we revert to default encoding, if the current accept is not available
-			enc = defaultEncoder
+			//cannot recover from this one
+			panic("cannot determine the request encoder")
 		}
 
 		rw.Header().Add("Content-Type", enc.Mimetype()+"; charset=utf-8")
@@ -123,9 +138,9 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 	isEmpty := makeEmptyCheck(*new(O))
 
 	return func(rw http.ResponseWriter, req *http.Request) {
-		enc, err := handlerCtx.encoderNegotiator.Get(req.Header.Get("Accept"))
+		enc, err := handlerCtx.getEncoder(req.Header.Get("Accept"))
 		if err != nil {
-			handleError(ErrNotAcceptable, rw, req)
+			handleError(err, rw, req)
 			return
 		}
 
