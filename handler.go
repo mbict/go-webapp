@@ -203,6 +203,12 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 			}
 		}
 
+		if cs, ok := res.(CookieSetter); ok {
+			for _, c := range cs.Cookies() {
+				http.SetCookie(rw, c)
+			}
+		}
+
 		if sc, ok := res.(StatusCoder); ok {
 			rw.WriteHeader(sc.StatusCode())
 		}
