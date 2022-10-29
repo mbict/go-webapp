@@ -6,6 +6,8 @@ const defaultTag = "default"
 const pathTag = "path"
 const queryTag = "query"
 const headerTag = "header"
+const cookieTag = "cookie"
+const requestTag = "request"
 
 type decoderFactory func(v any, tag string) (decoder.Decode, error)
 
@@ -22,8 +24,16 @@ var defaultDecodeBinders = []struct {
 		factory: decoder.NewQueryDecoder,
 	},
 	{
+		tag:     cookieTag,
+		factory: decoder.NewCookieDecoder,
+	},
+	{
 		tag:     pathTag,
 		factory: decoder.NewPathDecoder,
+	},
+	{
+		tag:     requestTag,
+		factory: decoder.NewRequestDecoder,
 	},
 }
 

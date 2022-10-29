@@ -21,6 +21,11 @@ type Headerer interface {
 	Header() http.Header
 }
 
+// CookieSetter allows you to customise cookies
+type CookieSetter interface {
+	Cookies() []*http.Cookie
+}
+
 // Handle is the type for the http headers
 type Handle[T any, O any] func(ctx context.Context, request T) (O, error)
 
@@ -106,6 +111,12 @@ func H[T any, O any](handle Handle[T, O], options ...Option) http.HandlerFunc {
 		if h, ok := e.(Headerer); ok {
 			for k, v := range h.Header() {
 				rw.Header().Add(k, v[0])
+			}
+		}
+
+		if cs, ok := e.(CookieSetter); ok {
+			for _, c := range cs.Cookies() {
+				http.SetCookie(rw, c)
 			}
 		}
 
