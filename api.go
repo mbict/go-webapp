@@ -37,6 +37,7 @@ type Router interface {
 	Handle(method, path string, handle http.HandlerFunc, mw ...Middleware)
 	Handler(method, path string, handle http.Handler, mw ...Middleware)
 	Group(path string, mw ...Middleware) Router
+
 	//Use(mw ...Middleware)
 }
 
@@ -87,7 +88,7 @@ func (r *API) Group(path string, mw ...Middleware) Router {
 	}
 }
 
-//global middleware
+// global middleware
 func (r *API) Use(mw ...Middleware) {
 	for _, m := range mw {
 		r.middleware = r.middleware.Append(func(handler http.Handler) http.Handler {

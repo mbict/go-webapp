@@ -6,6 +6,7 @@ import (
 	"github.com/mbict/go-webapp/internal"
 	"reflect"
 	"strconv"
+	"strings"
 	"unsafe"
 )
 
@@ -31,6 +32,11 @@ func compile(typ reflect.Type, tagKey string, isPtr bool) (decoder, error) {
 		if !ok && k != reflect.Struct {
 			continue
 		}
+
+		//separate tag and options
+		options := strings.Split(tag, `,`)
+		tag = options[0]
+		options = options[1:]
 
 		if reflect.PointerTo(t).Implements(unmarshalerType) {
 			decoders = append(decoders, decodeTextUnmarshaler(get(ptr, i, t), tag))
@@ -78,10 +84,17 @@ func compile(typ reflect.Type, tagKey string, isPtr bool) (decoder, error) {
 		case reflect.Bool:
 			decoders = append(decoders, decodeBool(set[bool](ptr, i, t), tag))
 		case reflect.Slice:
+
+			//slice with a text unmarshaller, time and uuid for example
+			if reflect.PointerTo(t.Elem()).Implements(unmarshalerType) {
+				decoders = append(decoders, decodeTextUnmarshalerSlice(i, get(ptr, i, t), tag, getDelimiterFromOptions(options)))
+				continue
+			}
+
 			_, sk, _ := typeKind(t.Elem())
 			switch sk {
 			case reflect.String:
-				decoders = append(decoders, decodeStrings(set[[]string](ptr, i, t), tag))
+				decoders = append(decoders, decodeStrings(set[[]string](ptr, i, t), tag, getDelimiterFromOptions(options)))
 			case reflect.Uint8:
 				decoders = append(decoders, decodeBytes(set[[]byte](ptr, i, t), tag))
 			}
@@ -111,6 +124,26 @@ func compile(typ reflect.Type, tagKey string, isPtr bool) (decoder, error) {
 
 		return nil
 	}, nil
+}
+
+func getDelimiterFromOptions(options []string) string {
+	for _, opt := range options {
+		if strings.HasPrefix(opt, "delimiter:") {
+			delimiter := strings.TrimPrefix(opt, "delimiter:")
+			switch delimiter {
+			case "space":
+				return " "
+			case "comma":
+				return ","
+			case "semicolon":
+				return ";"
+			case "pipe":
+				return "|"
+			}
+			return delimiter
+		}
+	}
+	return ""
 }
 
 func typeKind(t reflect.Type) (reflect.Type, reflect.Kind, bool) {
@@ -380,17 +413,51 @@ func decodeBytes(set func(reflect.Value, []byte), k string) decoder {
 		if s := g.Get(k); s != "" {
 			set(v, internal.Atob(s))
 		}
+		return nil
+	}
+}
+
+func decodeStrings(set func(reflect.Value, []string), k string, splitChar string) decoder {
+	return func(v reflect.Value, g Getter) error {
+		if s := g.Values(k); s != nil {
+
+			if splitChar != "" {
+				var res []string
+				for _, value := range s {
+					res = append(res, strings.Split(value, splitChar)...)
+				}
+				s = res
+			}
+			set(v, s)
+		}
 
 		return nil
 	}
 }
 
-func decodeStrings(set func(reflect.Value, []string), k string) decoder {
+func decodeTextUnmarshalerSlice(i int, get func(reflect.Value) reflect.Value, k string, splitChar string) decoder {
 	return func(v reflect.Value, g Getter) error {
 		if s := g.Values(k); s != nil {
-			set(v, s)
-		}
 
+			if splitChar != "" {
+				var res []string
+				for _, value := range s {
+					res = append(res, strings.Split(value, splitChar)...)
+				}
+				s = res
+			}
+
+			var values []reflect.Value
+			for _, val := range s {
+				marshVal := reflect.New(get(v).Type().Elem().Elem())
+				if err := marshVal.Interface().(encoding.TextUnmarshaler).UnmarshalText(internal.Atob(val)); err != nil {
+					return err
+				}
+
+				values = append(values, reflect.Indirect(marshVal))
+			}
+			v.Field(i).Set(reflect.Append(v.Field(i), values...))
+		}
 		return nil
 	}
 }
