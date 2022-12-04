@@ -33,10 +33,7 @@ func compile(typ reflect.Type, tagKey string, isPtr bool) (decoder, error) {
 			continue
 		}
 
-		//separate tag and options
-		options := strings.Split(tag, `,`)
-		tag = options[0]
-		options = options[1:]
+		tag, options := parseTag(tag)
 
 		if reflect.PointerTo(t).Implements(unmarshalerType) {
 			decoders = append(decoders, decodeTextUnmarshaler(get(ptr, i, t), tag))
@@ -124,26 +121,6 @@ func compile(typ reflect.Type, tagKey string, isPtr bool) (decoder, error) {
 
 		return nil
 	}, nil
-}
-
-func getDelimiterFromOptions(options []string) string {
-	for _, opt := range options {
-		if strings.HasPrefix(opt, "delimiter:") {
-			delimiter := strings.TrimPrefix(opt, "delimiter:")
-			switch delimiter {
-			case "space":
-				return " "
-			case "comma":
-				return ","
-			case "semicolon":
-				return ";"
-			case "pipe":
-				return "|"
-			}
-			return delimiter
-		}
-	}
-	return ""
 }
 
 func typeKind(t reflect.Type) (reflect.Type, reflect.Kind, bool) {
@@ -417,14 +394,14 @@ func decodeBytes(set func(reflect.Value, []byte), k string) decoder {
 	}
 }
 
-func decodeStrings(set func(reflect.Value, []string), k string, splitChar string) decoder {
+func decodeStrings(set func(reflect.Value, []string), k string, delimiter string) decoder {
 	return func(v reflect.Value, g Getter) error {
 		if s := g.Values(k); s != nil {
 
-			if splitChar != "" {
+			if delimiter != "" {
 				var res []string
 				for _, value := range s {
-					res = append(res, strings.Split(value, splitChar)...)
+					res = append(res, strings.Split(value, delimiter)...)
 				}
 				s = res
 			}
@@ -435,14 +412,14 @@ func decodeStrings(set func(reflect.Value, []string), k string, splitChar string
 	}
 }
 
-func decodeTextUnmarshalerSlice(i int, get func(reflect.Value) reflect.Value, k string, splitChar string) decoder {
+func decodeTextUnmarshalerSlice(i int, get func(reflect.Value) reflect.Value, k string, delimiter string) decoder {
 	return func(v reflect.Value, g Getter) error {
 		if s := g.Values(k); s != nil {
 
-			if splitChar != "" {
+			if delimiter != "" {
 				var res []string
 				for _, value := range s {
-					res = append(res, strings.Split(value, splitChar)...)
+					res = append(res, strings.Split(value, delimiter)...)
 				}
 				s = res
 			}
@@ -460,4 +437,50 @@ func decodeTextUnmarshalerSlice(i int, get func(reflect.Value) reflect.Value, k 
 		}
 		return nil
 	}
+}
+
+func parseTag(tag string) (string, string) {
+	tag, opt, _ := strings.Cut(tag, ",")
+	return tag, opt
+}
+
+func getDelimiterFromOptions(o string) string {
+
+	if len(o) == 0 {
+		return ""
+	}
+	s := string(o)
+	for s != "" {
+		var option string
+		option, s, _ = strings.Cut(s, ",")
+		switch {
+		case option == "comma-delimited":
+			return ","
+		case option == "semicolon-delimited":
+			return ";"
+		case option == "pipe-delimited":
+			return "|"
+		case option == "space-delimited":
+			return " "
+		case option == "tab-delimited":
+			return "\t"
+		case strings.HasPrefix(option, "delimiter=") == true:
+			_, delimiter, _ := strings.Cut(option, "=")
+			switch delimiter {
+			case "space":
+				return " "
+			case "comma":
+				return ","
+			case "semicolon":
+				return ";"
+			case "pipe":
+				return "|"
+			case "": //naive way for comma delimiters, as we dont need to escape `field,delimiter=,,nextoption`
+				return ","
+			default:
+				return delimiter
+			}
+		}
+	}
+	return ""
 }

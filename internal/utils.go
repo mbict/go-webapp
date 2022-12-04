@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"github.com/goccy/go-reflect"
+	reflect "github.com/goccy/go-reflect"
 	"unsafe"
 )
 
