@@ -70,10 +70,10 @@ func asPtr[T comparable](in T) *T {
 
 type queryExplodeTest struct {
 	StringSlice    []string `query:"strings"`
-	CommaSlice     []string `query:"stringsc,delimiter:comma"`
-	SemiColonSlice []string `query:"stringssc,delimiter:semicolon"`
-	SpaceSlice     []string `query:"stringss,delimiter:space"`
-	PipeSlice      []string `query:"stringsp,delimiter:pipe"`
+	CommaSlice     []string `query:"stringsc,delimiter=comma"`
+	SemiColonSlice []string `query:"stringssc,delimiter=semicolon"`
+	SpaceSlice     []string `query:"stringss,delimiter=space"`
+	PipeSlice      []string `query:"stringsp,delimiter=pipe"`
 }
 
 func TestQueryDecoderExplodeSlice(t *testing.T) {
